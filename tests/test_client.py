@@ -188,19 +188,26 @@ def test_history_to_pandas():
 
 
 def test_requests_are_rate_limited_and_identify_the_library():
-    seen = []
+    sent, agents = [], []
+
+    class Timed(httpx.Client):
+        # The moment the limiter lets each request go. Timing it inside the transport would add httpx's own
+        # per-request work, which varies (the first request is slower) and made gaps look short on slow CI.
+        def request(self, *args, **kw):
+            sent.append(time.perf_counter())
+            return super().request(*args, **kw)
 
     def handler(request):
-        seen.append((time.perf_counter(), request.headers["user-agent"]))
+        agents.append(request.headers["user-agent"])
         return httpx.Response(200, json={})
 
     src = Source(min_interval=0.2)
-    src.http = httpx.Client(transport=httpx.MockTransport(handler), headers={"User-Agent": USER_AGENT})
+    src.http = Timed(transport=httpx.MockTransport(handler), headers={"User-Agent": USER_AGENT})
     for _ in range(3):
         src._get("https://example.org/")
-    gaps = [b[0] - a[0] for a, b in itertools.pairwise(seen)]
-    assert all(g >= 0.19 for g in gaps)
-    assert all(ua.startswith("fundly/") for _, ua in seen)
+    gaps = [b - a for a, b in itertools.pairwise(sent)]
+    assert len(gaps) == 2 and all(g >= 0.199 for g in gaps), gaps
+    assert all(ua.startswith("fundly/") for ua in agents)
 
 
 def test_429_pauses_the_source_without_more_requests():

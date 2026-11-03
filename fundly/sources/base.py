@@ -92,7 +92,7 @@ class Source:
         # Set by the Client to a folder in its cache directory; None keeps downloads in memory only.
         self.files_dir: Path | None = None
         self._lock = threading.Lock()
-        self._next_slot = 0.0
+        self._last_sent = float("-inf")
         self._cooldown_until = 0.0
         self.http = httpx.Client(
             timeout=self.timeout, follow_redirects=True,
@@ -100,14 +100,18 @@ class Source:
         )
 
     def _request(self, method: str, url: str, **kw) -> httpx.Response:
-        with self._lock:
-            # perf_counter, not monotonic: on Windows before Python 3.13 monotonic only ticks every ~16 ms.
-            now = time.perf_counter()
-            if now < self._cooldown_until:
-                raise RateLimited(f"{self.name} asked us to slow down; retrying in {self._cooldown_until - now:.0f}s")
-            wait = self._next_slot - now
-            self._next_slot = max(now, self._next_slot) + self.min_interval
-        if wait > 0:
+        # The interval counts from when the previous request actually went out: sleep() overshoots by a few
+        # ms, so fixed slots would let a late request and a punctual next one go out closer than min_interval.
+        # perf_counter, not monotonic: on Windows before Python 3.13 monotonic only ticks every ~16 ms.
+        while True:
+            with self._lock:
+                now = time.perf_counter()
+                if now < self._cooldown_until:
+                    raise RateLimited(f"{self.name} asked us to slow down; retrying in {self._cooldown_until - now:.0f}s")
+                wait = self._last_sent + self.min_interval - now
+                if wait <= 0:
+                    self._last_sent = now
+                    break
             time.sleep(wait)
         r = self.http.request(method, url, **kw)
         if r.status_code == 429:
