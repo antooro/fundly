@@ -23,15 +23,12 @@
 ---
 
 ```python
->>> import fundly
+import fundly
 
->>> fundly.quote("VTSAX").price               # US mutual fund, by ticker
-182.82
->>> fundly.quote("ES0112611001").price        # Spanish fund, by ISIN
-367.82113
->>> fundly.quote("cl-afp:HABITAT-A").price    # Chilean pension fund, local code
-100365.02
->>> fundly.history("INF179K01XQ0").to_pandas()   # Indian fund, daily history
+fundly.quote("VTSAX").price                  # 182.82     US mutual fund, by ticker
+fundly.quote("ES0112611001").price           # 367.82113  Spanish fund, by ISIN
+fundly.quote("cl-afp:HABITAT-A").price       # 100365.02  Chilean pension fund, local code
+fundly.history("INF179K01XQ0").to_pandas()   # Indian fund, daily history as a pandas Series
 ```
 
 ## Why fundly
@@ -59,78 +56,75 @@ pip install fundly              # pip install "fundly[pandas]" for .to_pandas()
 **Search by name, in any language.** Every word counts, in any order, accents optional:
 
 ```python
->>> for f in fundly.search("emaxis slim", limit=3):
-...     print(f.id, f.name)
-JP90C000PZY9 MUAM eMAXIS Slim All US Equity
-JP90C000G7W3 MUAM eMAXIS Slim All World Eq 3 Reg Eql
-JP90C000H1T1 MUAM eMAXIS Slim All Wld Eq All Country
+for f in fundly.search("emaxis slim", limit=3):
+    print(f.id, f.name)
+# JP90C000PZY9 MUAM eMAXIS Slim All US Equity
+# JP90C000G7W3 MUAM eMAXIS Slim All World Eq 3 Reg Eql
+# JP90C000H1T1 MUAM eMAXIS Slim All Wld Eq All Country
 
->>> [f.id for f in fundly.search("superfondo acciones", limit=3)]
-['ar-cafci:148', 'ar-cafci:304', 'ar-cafci:1373']
+[f.id for f in fundly.search("superfondo acciones", limit=3)]
+# ['ar-cafci:148', 'ar-cafci:304', 'ar-cafci:1373']
 ```
 
 **Any identifier lands on the same fund.** Tickers and local codes are translated to the ISIN when one exists, so caching and cross-checking work across them:
 
 ```python
->>> fundly.quote("in-amfi:118989").id                 # AMFI scheme code
-'INF179K01XQ0'
->>> fundly.quote("VOO").id, fundly.instrument("VOO").type
-('US9229083632', 'etf')
+fundly.quote("in-amfi:118989").id                       # 'INF179K01XQ0'  (AMFI scheme code → ISIN)
+fundly.quote("VOO").id, fundly.instrument("VOO").type    # ('US9229083632', 'etf')
 ```
 
 **Daily history**, straight into pandas:
 
 ```python
->>> fundly.history("N5508", start="2026-10-01").to_pandas().tail(3)    # Spanish pension plan
-date
-2026-10-21    134.58548
-2026-10-22    133.59280
-2026-10-23    133.50458
+fundly.history("N5508", start="2026-10-01").to_pandas().tail(3)    # Spanish pension plan
+# date
+# 2026-10-21    134.58548
+# 2026-10-22    133.59280
+# 2026-10-23    133.50458
 ```
 
 **Cross-check every source.** Independent feeds agreeing to the last decimal is how you know a price is right:
 
 ```python
->>> c = fundly.compare("ES0173311103")       # Renta 4 Numantia Patrimonio Global
->>> for q in c.quotes:
-...     print(f"{q.source:<12} {q.price:>9} {q.currency} {q.date}")
-morningstar    29.3605 EUR 2026-10-23
-finect        29.00609 EUR 2026-10-21
-ft             29.3605 EUR 2026-10-23
-quefondos     29.41016 EUR 2026-10-22
-yahoo          29.4102 EUR 2026-10-22
->>> c.nav_spread_pct                         # spread between sources that share the latest date
-0.0
+c = fundly.compare("ES0173311103")    # Renta 4 Numantia Patrimonio Global
+for q in c.quotes:
+    print(f"{q.source:<12} {q.price:>9} {q.currency} {q.date}")
+# morningstar    29.3605 EUR 2026-10-23
+# finect        29.00609 EUR 2026-10-21
+# ft             29.3605 EUR 2026-10-23
+# quefondos     29.41016 EUR 2026-10-22
+# yahoo          29.4102 EUR 2026-10-22
+
+c.nav_spread_pct    # 0.0  (spread between sources that share the latest date)
 ```
 
 **Know what kind of price you got.** Every quote says whether it is an official NAV, an exchange close, or an index rebuilt from published returns:
 
 ```python
->>> fundly.quote("IE00B4L5Y983").price_type          # iShares Core MSCI World: issuer NAV
-'nav'
->>> fundly.quote("IE00B4L5Y983", source="morningstar").price_type
-'market'
->>> fundly.quote("il-gemel:880").price_type          # Israeli provident fund: publishes monthly returns only
-'index'
+fundly.quote("IE00B4L5Y983").price_type                         # 'nav'     iShares Core MSCI World: issuer NAV
+fundly.quote("IE00B4L5Y983", source="morningstar").price_type   # 'market'  exchange close
+fundly.quote("il-gemel:880").price_type                         # 'index'   Israeli fund: monthly returns only
 ```
 
 **Spot bad data instead of trusting it blindly.** A price older than expected is flagged `stale`; one far from what other sources said in the last month is checked against the next source and replaced or flagged `suspicious`. Histories note isolated spikes and ×100 jumps:
 
 ```python
->>> q = fundly.quote("ar-cafci:3906")                 # Argentine agro fund that stopped reporting
->>> q.stale, q.age_days, q.warnings
-(True, 90, ('stale: last price is 90 days old (2026-07-31)',))
->>> q.to_dict()                                      # every result is JSON-ready
-{'id': 'ar-cafci:3906', 'name': 'ADBlick Granos Plus FCIC', 'price': 0.488829, 'date': '2026-07-31', ...}
+q = fundly.quote("ar-cafci:3906")    # Argentine agro fund that stopped reporting
+q.stale, q.age_days, q.warnings
+# (True, 90, ('stale: last price is 90 days old (2026-07-31)',))
+
+q.to_dict()    # every result is JSON-ready
+# {'id': 'ar-cafci:3906', 'name': 'ADBlick Granos Plus FCIC', 'price': 0.488829, 'date': '2026-07-31', ...}
 ```
 
 **Value everything in one currency.** Prices come in each fund's own currency; ask for another and fundly converts at the ECB reference rate of the price's date, keeping the original figure:
 
 ```python
->>> q = fundly.quote("INF179K01XQ0", currency="EUR")     # Indian fund, in euros
->>> round(q.price, 4), q.original_price, q.original_currency, round(q.fx_rate, 6), q.fx_source
-(2.0377, 216.123, 'INR', 0.009428, 'ecb')
->>> fundly.history("VTSAX", start="2025-01-01", currency="EUR")   # each day at that day's rate
+q = fundly.quote("INF179K01XQ0", currency="EUR")    # Indian fund, in euros
+round(q.price, 4), q.original_price, q.original_currency, round(q.fx_rate, 6), q.fx_source
+# (2.0377, 216.123, 'INR', 0.009428, 'ecb')
+
+fundly.history("VTSAX", start="2025-01-01", currency="EUR")    # each day at that day's rate
 ```
 
 ## Coverage
