@@ -1,0 +1,20 @@
+name: live
+
+# Once a week against the real sites, to notice when one of them changes. Failures here mean a source
+# needs attention, not that the code is broken.
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run pytest -m live -q -rf

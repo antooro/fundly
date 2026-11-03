@@ -1,0 +1,28 @@
+# environments (.venv is a link to .venv.nosync so iCloud doesn't sync it)
+.venv
+.venv/
+.venv.nosync/
+__pycache__/
+*.pyc
+
+# tool caches and build output
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+htmlcov/
+dist/
+build/
+
+# local fundly caches
+*.db
+*.db-*
+
+# duplicates iCloud creates on sync conflicts ("uv 2.lock")
+* 2
+* 2.*
+.DS_Store
+
+# git metadata lives here so iCloud does not sync it (.git is a pointer file)
+.git.nosync/
