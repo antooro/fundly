@@ -42,3 +42,20 @@ def test_processes_share_one_cache_without_locking_errors(tmp_path, processes, r
         found = c.search("fund", live=False, limit=100_000)
         assert len(found) == processes * rounds + processes  # every per-round fund + one "Shared Fund" each
         assert c.search(f"T{processes - 1}X{rounds - 1}", live=False)[0].id.endswith(f"{rounds - 1:03d}")
+
+
+def open_cache(cache_dir: str) -> str:
+    from fundly.cache import Cache
+    try:
+        Cache(Path(cache_dir)).one("SELECT 1")
+        return "ok"
+    except Exception as e:
+        return f"{type(e).__name__}: {e}"
+
+
+def test_many_processes_opening_a_new_cache_at_once(tmp_path):
+    # Switching a new database to WAL takes an exclusive lock SQLite doesn't wait for; it used to fail here.
+    ctx = mp.get_context("spawn")
+    with ctx.Pool(10) as pool:
+        for i in range(15):
+            assert set(pool.map(open_cache, [str(tmp_path / str(i))] * 10)) == {"ok"}

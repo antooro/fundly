@@ -2,6 +2,7 @@ import os
 import sqlite3
 import sys
 import threading
+import time
 import unicodedata
 from contextlib import contextmanager
 from pathlib import Path
@@ -56,7 +57,7 @@ class Cache:
         self._conn.row_factory = sqlite3.Row
         self._lock = threading.RLock()
         if directory is not None:
-            self._conn.execute("PRAGMA journal_mode=WAL")
+            self._enable_wal()
         with self.tx() as c:
             if c.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION:
                 # It's only a cache: on a schema change, start over instead of migrating.
@@ -66,6 +67,20 @@ class Cache:
             for statement in SCHEMA.split(";"):
                 if statement.strip():
                     c.execute(statement)
+
+    def _enable_wal(self):
+        """Switching to WAL needs an exclusive lock and SQLite doesn't wait for it, so when several processes
+        open a new cache at once, the losers get "database is locked" at once. Retry up to BUSY_TIMEOUT."""
+        deadline, delay = time.monotonic() + BUSY_TIMEOUT, 0.005
+        while True:
+            try:
+                self._conn.execute("PRAGMA journal_mode=WAL")
+                return
+            except sqlite3.OperationalError as e:
+                if "locked" not in str(e) or time.monotonic() > deadline:
+                    raise
+                time.sleep(delay)
+                delay = min(delay * 2, 0.25)
 
     @contextmanager
     def tx(self):
