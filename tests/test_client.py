@@ -191,7 +191,7 @@ def test_requests_are_rate_limited_and_identify_the_library():
     seen = []
 
     def handler(request):
-        seen.append((time.monotonic(), request.headers["user-agent"]))
+        seen.append((time.perf_counter(), request.headers["user-agent"]))
         return httpx.Response(200, json={})
 
     src = Source(min_interval=0.2)

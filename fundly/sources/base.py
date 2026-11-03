@@ -101,7 +101,8 @@ class Source:
 
     def _request(self, method: str, url: str, **kw) -> httpx.Response:
         with self._lock:
-            now = time.monotonic()
+            # perf_counter, not monotonic: on Windows before Python 3.13 monotonic only ticks every ~16 ms.
+            now = time.perf_counter()
             if now < self._cooldown_until:
                 raise RateLimited(f"{self.name} asked us to slow down; retrying in {self._cooldown_until - now:.0f}s")
             wait = self._next_slot - now
@@ -116,7 +117,7 @@ class Source:
             except ValueError:
                 delay = DEFAULT_COOLDOWN
             with self._lock:
-                self._cooldown_until = time.monotonic() + delay
+                self._cooldown_until = time.perf_counter() + delay
             raise RateLimited(f"{self.name} answered 429; pausing it for {delay:.0f}s")
         return r
 
