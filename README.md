@@ -7,7 +7,7 @@
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white">
   <img alt="License: PolyForm Noncommercial 1.0.0" src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-3ddc97">
   <img alt="Status: alpha" src="https://img.shields.io/badge/status-alpha-f5b84b">
-  <img alt="Sources: 17" src="https://img.shields.io/badge/sources-17-7aa2ff">
+  <img alt="Sources: 20" src="https://img.shields.io/badge/sources-20-7aa2ff">
   <img alt="Dependencies: httpx" src="https://img.shields.io/badge/dependencies-httpx-7aa2ff">
 </p>
 
@@ -129,7 +129,7 @@ fundly.history("VTSAX", start="2025-01-01", currency="EUR")    # each day at tha
 
 ## Coverage
 
-Real quotes taken with fundly on 27 October 2026:
+Real quotes taken with fundly in October and November 2026:
 
 | Market | Example id | What it is | Latest | Source |
 |---|---|---|---|---|
@@ -151,12 +151,16 @@ Real quotes taken with fundly on 27 October 2026:
 | 🇧🇷 Brazil funds | `br-cvm:00017024000153` | Renda fixa class | 45.26 BRL | CVM (official open data) |
 | 🇦🇷 Argentina funds | `ar-cafci:148` | Superfondo Acciones, Clase A | 486.53 ARS | CAFCI, argentinadatos |
 | 🇮🇱 Israel provident & pension | `il-gemel:880` | Meitav Hishtalmut General | index | Gemel-net (gov) |
+| 🇹🇷 Turkey funds & BES pensions | `tr-tefas:YAC` | Yapı Kredi Portföy İkinci Fon Sepeti | 14.09 TRY | TEFAS (official) |
+| 🇵🇪 Peru mutual funds | `pe-smv:38036-0002` | BBVA Renta Mediano Plazo Soles | 412.62 PEN | SMV (official) |
+| 🇲🇽 Mexico funds & AFORE pensions | `MX54PR1Y0001` | Profuturo SIEFORE 70-74 (PROF-70 A-I) | 17.74 MXN | Morningstar |
+| 🇵🇭 Philippine bank trust funds | `ph-uitf:69` | BPI Philippine Equity Index Fund | 83.53 PHP | uitf.com.ph |
 
 **Tested at random:** in 326 funds, ETFs and pension plans drawn at random from 15 universes (worldwide Morningstar pages, AMFI, CAFCI, CVM, Chilean AFPs, Spanish plans…), **96% returned a price** and none raised an unexpected error. The misses were mostly funds that have since closed but are still listed.
 
-Morningstar alone reaches funds and ETFs in most countries (US, Canada, Europe, Japan, Korea, Taiwan, Hong Kong, Singapore, Australia, South Africa, the Gulf…). The national sources add official data and products Morningstar doesn't carry. Not covered yet: Turkey, Peru, Mexico, Hong Kong MPF and Australian superannuation. Their public data sits behind bot protection or isn't published.
+Morningstar alone reaches funds and ETFs in most countries (US, Canada, Mexico, Europe, Japan, Korea, Taiwan, Hong Kong, Singapore, Thailand, Malaysia, Australia, South Africa, the Gulf…), including Mexican AFORE pension funds (search `afore profuturo`) and Hong Kong MPF funds. The national sources add official data and products Morningstar doesn't carry. Not covered yet: Peruvian AFP pensions, Philippine mutual funds and some Australian superannuation funds (AustralianSuper, UniSuper, Cbus); their public data sits behind bot protection.
 
-**History depth.** Argentine funds have daily history from January 2020 for every class, from the argentinadatos.com community mirror of the regulator's (CNV) daily sheets. Indonesian funds get full history since launch from Morningstar (about a third of them), or from the manager's own site for Batavia, Trimegah, Avrist and Syailendra (about 140 more funds, some back to 1996). Others have Pasardana's last 12 months: older data is a paid product everywhere we looked. With the cache on, fundly keeps every Indonesian and Argentine price it downloads, so those histories grow on your machine instead of sliding along.
+**History depth.** Argentine funds have daily history from January 2020 for every class, from the argentinadatos.com community mirror of the regulator's (CNV) daily sheets. Indonesian funds get full history since launch from Morningstar (about a third of them), or from the manager's own site for seven managers (about 190 more funds, some back to 1996). Others have Pasardana's last 12 months: older data is a paid product everywhere we looked. Turkish funds have 5 years (TEFAS's limit). Peruvian funds go back to launch; a series of a multi-series fund costs one request per day, so it covers its last two months. Philippine trust funds give today's price only (the site's history sits behind a captcha). With the cache on, fundly keeps every Indonesian, Argentine and Philippine price it downloads, so those histories grow on your machine instead of sliding along.
 
 ## Identifiers
 
@@ -176,6 +180,9 @@ Morningstar alone reaches funds and ETFs in most countries (US, Canada, Europe, 
 | `pl-analizy:` | analizy.pl code | `pl-analizy:PZU50` |
 | `il-gemel:` · `il-pensia:` | Israeli fund id | `il-gemel:880` |
 | `vn-fmarket:` · `id-pasardana:` | Vietnam fund code · Pasardana id | `vn-fmarket:VFF` |
+| `tr-tefas:` | TEFAS fund code (Turkey) | `tr-tefas:YAC` |
+| `pe-smv:` | SMV manager–fund code, plus series (Peru) | `pe-smv:38036-0002`, `pe-smv:151229-0004-B` |
+| `ph-uitf:` | uitf.com.ph fund id (Philippines) | `ph-uitf:69` |
 
 Results always carry a canonical `id`: the ISIN when there is one, otherwise `scheme:code`.
 
@@ -254,7 +261,10 @@ Errors: `InvalidId`, `NotFound`, `UnknownSource`, `FXUnavailable` and `FundlyTim
 | Gemel-net / Pensia-net | Israel provident & pension funds | index from monthly returns, official |
 | fmarket | Vietnam funds | NAV |
 | Pasardana | Indonesia funds | NAV, last 12 months of history |
-| Batavia, Trimegah, Avrist, Syailendra | Their Indonesian funds | full NAV history, from each manager's site |
+| Batavia, Trimegah, Avrist, Syailendra, Samuel, Henan Putihrai, Korea Investment | Their Indonesian funds | full NAV history, from each manager's site |
+| TEFAS | Turkey funds, BES pension funds, ETFs | NAV, official, 5 years of history |
+| SMV | Peru mutual funds | NAV, official |
+| uitf.com.ph (Trust Officers Association) | Philippine bank trust funds (UITF) | latest NAV; history builds up locally |
 
 ## Responsible use
 
@@ -262,10 +272,11 @@ fundly is an independent, source-available project, **not affiliated with any of
 
 - **No data ships with fundly.** Every request goes from your machine to the public website, as if you visited it, and you are responsible for following each site's terms of use.
 - **Personal, non-commercial use.** Most of these sites allow personal use and **forbid redistributing or reselling their data**. Don't use fundly to build a data feed, a paid API or any service that republishes it.
-- **robots.txt.** Morningstar, Finect, Yahoo, npsnav.in, analizy.pl and Gemel-net ask automated clients to stay away in their robots.txt. Like yfinance, fundly uses them by default. If you prefer to respect robots.txt strictly, leave them out:
+- **robots.txt.** Morningstar, Finect, Yahoo, npsnav.in, analizy.pl and Gemel-net ask automated clients to stay away in their robots.txt, and uitf.com.ph asks for 60 s between requests (fundly waits 2 s there). Like yfinance, fundly uses them by default. If you prefer to respect robots.txt strictly, leave them out:
   ```python
-  Client(exclude=["morningstar", "finect", "yahoo", "npsnav", "analizy", "gemelnet"])
+  Client(exclude=["morningstar", "finect", "yahoo", "npsnav", "analizy", "gemelnet", "uitf"])
   ```
+- **TEFAS.** Its web pages, robots.txt included, refuse non-browser clients, while its public API answers normally, so its terms can't be read. fundly calls only the API; leave it out with `Client(exclude=["tefas"])` if in doubt.
 - **Gentle by default.** At most one request every 0.5 s per site, cached results, and a pause whenever a site answers *429 Too Many Requests*.
 - **Honest.** fundly identifies itself in its `User-Agent` and never bypasses anti-bot protection. Sites that block automated clients are not supported.
 - **No advice.** Prices can be late, missing or wrong. Nothing here is investment advice, and the software comes with no warranty.
@@ -285,8 +296,8 @@ Because it forbids commercial use, fundly is *source-available*, not "open sourc
 
 ```bash
 uv sync
-uv run pytest            # 527 offline tests: parsers, client, currencies, broken sites, properties, concurrency
-uv run pytest -m live    # 75 tests against the real sites
+uv run pytest            # 595 offline tests: parsers, client, currencies, broken sites, properties, concurrency
+uv run pytest -m live    # 87 tests against the real sites
 ```
 
 Adding a country is one class with `get_quote`, `get_history` and, optionally, `search`, plus an id scheme registered in `fundly.ids`. See `fundly/sources/`.

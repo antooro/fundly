@@ -166,3 +166,9 @@ def test_a_morningstar_only_entry_with_the_same_name_is_folded_into_the_public_i
     assert (found[0].type, found[0].size_eur, found[0].provider) == ("plan", 16_788_785, "Santander Pensiones EGFP")
     assert c.instrument("ms:F00001I2ZO").id == "N5507"
     assert c.search("other fund")[0].id == "ms:F000000001"  # no twin: kept as it is
+
+
+def test_afore_is_searched_as_siefore():
+    from fundly.search import rewrite
+    assert rewrite("Afore Profuturo") == "siefore Profuturo"
+    assert rewrite("afores") == "siefore" and rewrite("fondo sura") == "fondo sura" and rewrite("") == ""

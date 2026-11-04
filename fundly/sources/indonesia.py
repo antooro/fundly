@@ -7,7 +7,7 @@ import httpx
 from .. import ids
 from ..cache import normalize
 from .base import Cached, ETF, FUND, ISIN, HistoryResult, Inst, NavEntry, QuoteResult, Source, in_range
-from .id_managers import MANAGERS, Manager, manager_key
+from .id_managers import MANAGERS, Manager
 
 SCHEME = "id-pasardana"
 ids.register(SCHEME, re.compile(r"^\d{1,7}$").match)
@@ -27,7 +27,7 @@ class PasardanaSource(Source):
     """Indonesian mutual funds (reksa dana) and ETFs from pasardana.id.
 
     History: the fund page's last ~12 months (older data is a paid product), plus the full history since launch
-    that some managers publish on their own sites (Batavia, Trimegah, Avrist, Syailendra; see id_managers). With a
+    that some managers publish on their own sites (see id_managers). With a
     cache folder, every history
     and every daily list fundly downloads is also kept on disk, so a fund's history keeps growing past those
     12 months on each machine instead of sliding along with them.
@@ -48,7 +48,7 @@ class PasardanaSource(Source):
         self._managers = {m.name: Cached(self._manager_list(m), MANAGER_LIST_TTL) for m in MANAGERS}
 
     def _manager_list(self, m: Manager):
-        return lambda: {manager_key(name, m.provider): key for name, key in m.catalogue(self._get).items()}
+        return lambda: {m.key(name): key for name, key in m.catalogue(self._get).items()}
 
     def supports(self, inst: Inst) -> bool:
         if inst.scheme == ISIN and not inst.code.startswith("ID"):
@@ -140,7 +140,7 @@ class PasardanaSource(Source):
         if m is None:
             return {}
         try:
-            key = self._managers[m.name].get().get(manager_key(f["name"], m.provider))
+            key = self._managers[m.name].get().get(m.key(f["name"]))
             return m.history(self._get, key) if key else {}
         except (httpx.HTTPError, ValueError) as e:
             log.info("%s: %s history unavailable (%s)", self.name, m.name, e)

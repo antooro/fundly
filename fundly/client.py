@@ -17,7 +17,7 @@ from .fx import FX, ECBRates, RateSource, YahooRates
 from .models import Comparison, History, Instrument, PricePoint, PriceType, Quote
 from .ids import DGS, ISIN, MS, TICKER, TICKER_RE, canonical, is_valid_isin, parse, split
 from .quality import AGREE_FACTOR, REFERENCE_WINDOW_DAYS, apart, history_warnings, how_far, stale_warning
-from .search import match_rank, plan
+from .search import match_rank, plan, rewrite
 from .sources.base import ETF, FUND, PLAN, HistoryResult, Inst, NavEntry, QuoteResult, Source
 from .sources.argentina import CAFCISource
 from .sources.brazil import BrazilCVMSource
@@ -31,8 +31,11 @@ from .sources.india import AMFISource, NPSSource
 from .sources.indonesia import PasardanaSource
 from .sources.israel import GemelNetSource
 from .sources.morningstar import MorningstarSource
+from .sources.peru import SMVSource
+from .sources.philippines import UITFSource
 from .sources.poland import AnalizySource
 from .sources.quefondos import QuefondosSource
+from .sources.turkey import TEFASSource
 from .sources.vietnam import FmarketSource
 from .sources.yahoo import YahooSource
 import contextlib
@@ -41,7 +44,8 @@ import contextlib
 DEFAULT_SOURCES = (
     MorningstarSource, FinectSource, FTSource, ComparadorFondosSource, QuefondosSource, YahooSource,
     AMFISource, NPSSource, EastmoneySource, ChileAFPSource, ColombiaSource, BrazilCVMSource, CAFCISource,
-    AnalizySource, GemelNetSource, FmarketSource, PasardanaSource,
+    AnalizySource, GemelNetSource, FmarketSource, PasardanaSource, TEFASSource,
+    UITFSource, SMVSource,
 )
 
 log = logging.getLogger("fundly")
@@ -128,8 +132,9 @@ class Client:
         remembered locally, and the same query is not sent again for a day.
         """
         dl = self._deadline()
-        qn = normalize(q)
         exact = q.strip().upper()
+        q = rewrite(q)
+        qn = normalize(q)
         exact_ids = {exact}
         parsed = None
         with contextlib.suppress(InvalidId):

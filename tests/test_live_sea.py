@@ -4,7 +4,7 @@ from datetime import date, timedelta
 import pytest
 
 from fundly.sources.base import FUND, Inst
-from fundly.sources.id_managers import MANAGERS, manager_key
+from fundly.sources.id_managers import MANAGERS
 from fundly.sources.indonesia import PasardanaSource
 from fundly.sources.vietnam import FmarketSource
 
@@ -70,9 +70,9 @@ def test_pasardana_history_covers_the_last_year(pd):
 
 @pytest.mark.parametrize("manager", MANAGERS, ids=lambda m: m.name)
 def test_indonesian_managers_publish_years_of_history_matching_pasardana(pd, manager):
-    funds = {manager_key(f["name"], manager.provider): f for f in pd._lists.get()[1].values()
+    funds = {manager.key(f["name"]): f for f in pd._lists.get()[1].values()
              if manager.provider in (f["provider"] or "").lower()}
-    site = {manager_key(name, manager.provider): key for name, key in manager.catalogue(pd._get).items()}
+    site = {manager.key(name): key for name, key in manager.catalogue(pd._get).items()}
     matched = [k for k in site if k in funds]
     assert len(matched) >= 0.6 * len(site) and len(matched) >= 8
     # some funds are new; at least one goes well beyond Pasardana's ~240 points

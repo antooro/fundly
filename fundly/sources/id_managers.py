@@ -3,6 +3,7 @@
 Pasardana only shows the last 12 months; these managers chart every day since launch on each fund's public page.
 None of their pages carries a usable ISIN, so funds are matched to Pasardana's list by name.
 """
+import html
 import json
 import re
 from collections.abc import Callable
@@ -56,6 +57,14 @@ def _points(pairs, day_format: str = "%Y-%m-%d") -> dict[str, float]:
 class Manager:
     name: str
     provider: str  # lowercase text found in Pasardana's InvestmentManagerName
+    # (pattern, replacement) applied to both sides' names where the site and Pasardana spell them differently
+    aliases: tuple[tuple[str, str], ...] = ()
+
+    def key(self, name: str) -> str:
+        text = manager_key(name, self.provider)
+        for pattern, repl in self.aliases:
+            text = re.sub(pattern, repl, text)
+        return " ".join(text.split())
 
     def catalogue(self, get: Get) -> dict[str, str]:
         """{fund name: key}."""
@@ -73,12 +82,16 @@ class Batavia(Manager):
     def catalogue(self, get: Get) -> dict[str, str]:
         out = {}
         retail = _ok(get(f"{self.BASE}/produk")).text
-        for url, label in re.findall(r'href="(https://bpam\.co\.id/product/[^"]+)".*?products-card__label">([^<]+)<',
-                                     retail, re.S):
-            out[label.strip()] = url
-        # Institutional funds have no page; their code is in the prospectus file name.
+        # Cards link to /product/... or, since November 2026, /en/product/...; newer cards also carry the fund code
+        # in their class ("products-card__item BDKM ..."), which saves fetching the fund page.
+        for code, url, label in re.findall(
+                r'class="products-card__item ?([A-Z][A-Z0-9-]*)?[^"]*"\s*href="(https://bpam\.co\.id/(?:[a-z]{2}/)?product/[^"]+)"'
+                r'.*?products-card__label">([^<]+)<', retail, re.S):
+            out[label.strip()] = code or url
+        # Institutional funds have no page; their code is in the prospectus file name (-ID or -EN by site language).
         institutional = _ok(get(f"{self.BASE}/produk/institusi")).text
-        for code, label in re.findall(r'PROSP-([A-Z0-9-]+)-ID\.pdf".*?products-card__label">([^<]+)<', institutional, re.S):
+        prospectus = r'PROSP-([A-Z0-9-]+?)-(?:ID|EN)\.pdf".*?products-card__label">([^<]+)<'
+        for code, label in re.findall(prospectus, institutional, re.S):
             out.setdefault(label.strip(), code)
         return out
 
@@ -167,5 +180,59 @@ class Syailendra(Manager):
         return _points(tuple(x[:2]) for x in rows if isinstance(x, list) and len(x) >= 2)
 
 
+class Samuel(Manager):
+    name, provider = "samuel", "samuel"
+    aliases = ((r"^rdpt sam ", "sam penyertaan terbatas "), (r"^indeks ", ""))
+    BASE = "https://www.sam.co.id/produk"
+
+    def catalogue(self, get: Get) -> dict[str, str]:
+        page = _ok(get(f"{self.BASE}/nab")).text
+        return {_text(label): url for url, label in
+                re.findall(r'href="(https://www\.sam\.co\.id/produk/detail/[^"]+)"\s*>([^<]+)</a>', page)}
+
+    def history(self, get: Get, key: str) -> dict[str, float]:
+        # Google Charts rows: [new Date(2017, 1 ,10), 1000], months counted from 0 as in JavaScript; unsorted.
+        rows = re.findall(r"\[new Date\((\d+),\s*(\d+)\s*,\s*(\d+)\),\s*([\d.]+)\]", _ok(get(key)).text)
+        return _points((f"{y}-{int(m) + 1:02d}-{int(d):02d}", v) for y, m, d, v in rows)
+
+
+class Henan(Manager):
+    name, provider = "henan", "henan putihrai"
+    API = "https://api2.myhero.id/produk"
+
+    def catalogue(self, get: Get) -> dict[str, str]:
+        data = _ok(get(self.API)).json()
+        rows = (data.get("data") or {}).get("produk") if isinstance(data, dict) else None
+        return {x["nama_produk"].strip(): str(x["id"]) for x in rows or []
+                if isinstance(x, dict) and isinstance(x.get("nama_produk"), str) and x.get("id") is not None}
+
+    def history(self, get: Get, key: str) -> dict[str, float]:
+        # The site offers up to 5Y, but the API takes longer periods; "ALL" returns a single point.
+        data = _ok(get(f"{self.API}/nav3", params={"kinerja": "30Y", "produk_id": key})).json()
+        rows = (data.get("data") or {}).get("kinerja") if isinstance(data, dict) else None
+        return _points((x.get("tanggal"), x.get("nav")) for x in rows or [] if isinstance(x, dict))
+
+
+class KoreaInvestment(Manager):
+    name, provider = "kisi", "korea investment"
+    # Pasardana writes "Indeks Kisi IDX30 ETF" and "KIM SYARIAH SUKUK FUND" for the site's "KISI IDX30 ETF" and
+    # "KIM Sharia Sukuk Fund"; KIM and KISI are the same house.
+    aliases = ((r"^indeks ", ""), (r"^kisi ", "kim "), (r"\bsyariah\b", "sharia"))
+    BASE = "https://koreainvestment.co.id/produk"
+
+    def catalogue(self, get: Get) -> dict[str, str]:
+        page = _ok(get(self.BASE)).text
+        return {_text(label): url for url, label in re.findall(
+            r'href="(https://koreainvestment\.co\.id/produk/[a-z0-9-]+)".*?class="produk-card__name">([^<]+)<', page, re.S)}
+
+    def history(self, get: Get, key: str) -> dict[str, float]:
+        m = re.search(r'data-nav="([^"]*)"', _ok(get(key)).text)
+        try:
+            rows = json.loads(html.unescape(m.group(1))) if m else []
+        except ValueError:
+            return {}
+        return _points((x.get("date"), x.get("nav")) for x in rows if isinstance(x, dict))
+
+
 # Principal (principal.co.id) also publishes full histories, but its host refuses non-browser clients.
-MANAGERS: tuple[Manager, ...] = (Batavia(), Trimegah(), Avrist(), Syailendra())
+MANAGERS: tuple[Manager, ...] = (Batavia(), Trimegah(), Avrist(), Syailendra(), Samuel(), Henan(), KoreaInvestment())

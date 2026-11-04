@@ -5,7 +5,8 @@ import httpx
 
 from fundly.ids import isin_check_digit
 from fundly.sources.base import FUND, Inst
-from fundly.sources.id_managers import Avrist, Batavia, Syailendra, Trimegah, manager_key, match_name
+from fundly.sources.id_managers import (Avrist, Batavia, Henan, KoreaInvestment, Samuel, Syailendra, Trimegah,
+                                       manager_key, match_name)
 from fundly.sources.indonesia import PasardanaSource
 from test_sources import mock, path
 
@@ -87,6 +88,40 @@ def test_syailendra_menu_and_inline_data():
     assert s.history(get, url) == {"2015-01-05": 1000.0, "2015-01-06": 1000.31}
 
 
+def test_samuel_google_charts_rows_count_months_from_zero():
+    url = "https://www.sam.co.id/produk/detail/sam-dana-kas"
+    listing = f'<td><a href="{url}">\n   SAM DANA KAS   \t</a></td>'
+    page = "data.addRows([[new Date(2026, 10 ,03), 1560.4841],[new Date(2017, 1 ,10), 1000],[new Date(2017, 1 ,10), 1000]]);"
+    get = getter({"/produk/nab": httpx.Response(200, text=listing), url: httpx.Response(200, text=page)})
+    s = Samuel()
+    assert s.catalogue(get) == {"SAM DANA KAS": url}
+    assert s.history(get, url) == {"2017-02-10": 1000.0, "2026-11-03": 1560.4841}
+    assert s.key("RDPT SAM JALAN TOL") == s.key("SAM Penyertaan Terbatas Jalan Tol")
+    assert s.key("Indeks SAM ETF Sri Kehati") == s.key("SAM ETF Sri Kehati")
+
+
+def test_henan_api_list_and_long_history():
+    listing = {"data": {"produk": [{"id": 1, "nama_produk": "Henan Ultima Ekuitas Kelas A "}, {"id": None}, "x"]}}
+    navs = {"data": {"kinerja": [{"tanggal": "2009-12-07", "nav": 1000}, {"tanggal": "2026-11-02", "nav": 2082.7017}]}}
+    get = getter({"/produk/nav3?kinerja=30Y&produk_id=1": httpx.Response(200, json=navs),
+                  "/produk": httpx.Response(200, json=listing)})
+    h = Henan()
+    assert h.catalogue(get) == {"Henan Ultima Ekuitas Kelas A": "1"}
+    assert h.history(get, "1") == {"2009-12-07": 1000.0, "2026-11-02": 2082.7017}
+
+
+def test_korea_investment_reads_the_escaped_attribute_and_aliases_names():
+    url = "https://koreainvestment.co.id/produk/kim-equity-fund"
+    listing = f'<a href="{url}" class="produk-card"><div><h2 class="produk-card__name">KIM Equity Fund</h2></div></a>'
+    page = '<div data-nav="[{&quot;date&quot;:&quot;2019-12-12&quot;,&quot;nav&quot;:1000}]"></div>'
+    get = getter({url: httpx.Response(200, text=page), "/produk": httpx.Response(200, text=listing)})
+    k = KoreaInvestment()
+    assert k.catalogue(get) == {"KIM Equity Fund": url}
+    assert k.history(get, url) == {"2019-12-12": 1000.0}
+    assert k.key("Indeks Kisi IDX30 ETF") == k.key("KISI IDX30 ETF")
+    assert k.key("KIM SYARIAH SUKUK FUND") == k.key("KIM Sharia Sukuk Fund")
+
+
 # --- merged into Pasardana's history ----------------------------------------------------------------
 
 ISIN = "IDN00000500" + isin_check_digit("IDN00000500")
@@ -128,3 +163,17 @@ def test_funds_of_other_managers_cost_no_manager_requests():
                                  (path("/FundService/GetSnapshot"), httpx.Response(200, json=SNAPSHOT))])
     src.get_history(Inst(ISIN, FUND), "2026-01-01", "2026-12-31")
     assert all("pasardana" in str(r.url) for r in src.calls)
+
+
+def test_batavia_cards_since_november_2026_carry_the_code_and_english_files():
+    retail = ('<a\r\n class="products-card__item BDKM Dummy"\r\n href="https://bpam.co.id/en/product/money_market/'
+              'batavia_dana_kas_maxima"\r\n target="_self">\r\n'
+              '<span class="products-card__label">Batavia Dana Kas Maxima </span>'
+              '<a class="products-card__item " href="https://bpam.co.id/en/product/saham/batavia_dana_saham">'
+              '<span class="products-card__label">Batavia Dana Saham</span>')
+    institutional = ('<a class="products-card__item institusi" href="https://bpam.co.id/userfiles/uploads/files/PROSP-BDKS-C-EN.pdf">'
+                     '<span class="products-card__label">Batavia Dana Kas Sentosa C</span>')
+    get = getter({"/produk/institusi": httpx.Response(200, text=institutional), "/produk": httpx.Response(200, text=retail)})
+    assert Batavia().catalogue(get) == {"Batavia Dana Kas Maxima": "BDKM",  # no fund page needed
+                                        "Batavia Dana Saham": "https://bpam.co.id/en/product/saham/batavia_dana_saham",
+                                        "Batavia Dana Kas Sentosa C": "BDKS-C"}

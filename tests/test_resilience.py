@@ -17,6 +17,7 @@ IDS = {
     "eastmoney": "cn:110022", "cl-afp": "cl-afp:HABITAT-A", "datos-gov-co": "co-pension:10-6000",
     "cvm": "br-cvm:00017024000153", "cafci": "ar-cafci:148", "analizy": "pl-analizy:PZU50",
     "gemelnet": "il-gemel:880", "fmarket": "vn-fmarket:VFF", "pasardana": "IDN000007002",
+    "tefas": "tr-tefas:YAC", "uitf": "ph-uitf:69", "smv": "pe-smv:38036-0002",
 }
 
 

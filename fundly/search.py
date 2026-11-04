@@ -17,6 +17,16 @@ from .cache import normalize
 
 GLOBAL, NATIONAL, NONE = "global", "national", "none"
 
+# Words people search with that no fund name contains, mapped to one that does. Mexican pension funds are
+# SIEFOREs run by AFOREs, and their names are codes like "PROF-70 A-I" whose category says "Siefore".
+SYNONYMS = {"afore": "siefore", "afores": "siefore"}
+
+
+def rewrite(q: str) -> str:
+    """The query with SYNONYMS replaced, word by word (other words are kept as typed)."""
+    words = q.split()
+    return " ".join(SYNONYMS.get(normalize(w), w) for w in words) if words else q
+
 
 def scripts_in(text: str) -> set[str]:
     """Distinctive non-Latin scripts in the text (accented Latin letters don't count, except Vietnamese)."""

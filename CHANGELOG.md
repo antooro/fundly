@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.2.0 (2026-11-04)
+
+More countries and deeper histories.
+
+- Turkey: TEFAS, the official fund platform: 1,400+ investment funds, BES pension funds and ETFs, with 5 years
+  of daily history (`tr-tefas:YAC`).
+- Peru: mutual funds from the SMV, the securities regulator, with history back to launch; series of
+  multi-series funds as `pe-smv:151229-0004-B`.
+- Philippines: bank trust funds (UITF) from uitf.com.ph: today's price for ~400 funds; history builds up in the
+  local cache.
+- Indonesia: full histories from three more managers' own sites (Samuel, Henan Putihrai, Korea Investment),
+  about 50 more funds.
+- Mexico: searching `afore` now finds the AFORE pension funds (SIEFOREs) Morningstar already carries.
+- README: Mexico and Hong Kong MPF are covered through Morningstar.
+
 ## 0.1.0 (2026-11-03)
 
 First public release.
